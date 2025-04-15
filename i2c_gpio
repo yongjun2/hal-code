@@ -1,0 +1,129 @@
+#define	SCL		P3_6
+#define	SDA		P3_7
+
+//-	Ena	: 1=SDA is input. 0=SDA is output.
+void i2cSDAInput(UINT8 Ena)
+{
+	// SDA is input
+	if(Ena)
+	{
+		// P3_7 --> input mode
+		ZHAL_PORT3_INOUT_SET(7, 0);
+	}
+	// SDA is output
+	else
+	{
+		// P3_7 --> output mode
+		ZHAL_PORT3_INOUT_SET(7, 1);
+	}
+}
+
+void i2cDelay() 
+{
+	UINT16	iw;
+
+	for(iw=0 ; iw<100 ; iw++);
+}
+
+void I2C_START() 
+{
+	SCL = 1;
+	SDA = 1;	
+
+	i2cDelay();
+	i2cDelay();	
+	SDA = 0;
+	i2cDelay();
+	i2cDelay();
+	SCL = 0;
+	i2cDelay();
+	i2cDelay();
+}
+
+void I2C_STOP() 
+{
+	i2cDelay();
+	i2cDelay();
+	SCL = 1;	
+	i2cDelay();
+	i2cDelay();
+	SDA = 1;
+	i2cDelay();
+	i2cDelay();
+}
+
+//-	RETURN	: Ack. 0=OK, 1=Failed.
+UINT8 I2C_WRITE(UINT8 WrData)
+{
+	UINT8	num;
+	UINT8	wr_data;
+	UINT8	i2cAck;
+
+	wr_data = WrData;
+
+	for(num=0; num<8 ; num++) 
+	{
+		i2cDelay();
+		SDA = ( (wr_data & 0x80) >> 7);
+		wr_data = wr_data << 1;
+		i2cDelay();
+		SCL = 1;			// rising edge of SCL
+		i2cDelay();
+		i2cDelay();
+		SCL = 0;			// falling edge of SCL
+	}
+	i2cDelay();
+	i2cSDAInput(1);	// release SDA --> Now, SDA is input.	
+	i2cDelay();
+	SCL = 1;				// rising edge of SCL
+	i2cDelay();
+	i2cDelay();
+	i2cAck = SDA;		// Read ack from slave
+	SCL = 0;				// falling edge of SCL
+	i2cDelay();
+	i2cSDAInput(0);	// Now, SDA is output
+	SDA = 0;
+	i2cDelay();
+
+	return	i2cAck;
+
+}
+
+
+//-	RETURN	: Read value
+UINT8 I2C_READ() 
+{
+	UINT8	num;
+	UINT8	rd_data;
+
+	rd_data = 0x00;
+	SCL = 0;
+	i2cSDAInput(1);	// release SDA --> Now, SDA is input.	
+
+	for(num=0; num<8; num++) 
+	{
+		i2cDelay();
+		i2cDelay();
+		SCL = 1;					// rising edge of SCL
+		i2cDelay();
+		i2cDelay();
+		rd_data = rd_data << 1;
+		rd_data = rd_data | SDA;
+		SCL = 0;					// falling edge of SCL
+	}
+	i2cDelay();
+	i2cDelay();
+	SCL = 1;						// rising edge of SCL
+	i2cDelay();
+	i2cDelay();
+	SCL = 0;						// falling edge of SCL
+	i2cDelay();
+	i2cDelay();
+	i2cSDAInput(0);	// Now, SDA is output
+	SDA = 0;
+
+	return	rd_data;
+}
+
+
+
